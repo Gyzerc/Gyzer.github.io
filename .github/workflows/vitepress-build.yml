@@ -1,0 +1,50 @@
+name: VitePress Build
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout master branch
+      uses: actions/checkout@v3
+      with:
+        ref: master
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+    - name: Install dependencies
+      run: npm install
+
+    - name: Build VitePress
+      run: npm run build
+        
+    - name: Commit and push to site branch
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git checkout --orphan gh-pages
+        git --work-tree ./.vitepress/dist/ add --all
+        git --work-tree ./.vitepress/dist/ commit -m gh-pages
+        git push origin HEAD:gh-pages --force
+        git checkout -f master
+        git branch -D gh-pages
+
+    - name: Notify host server
+      run: |
+        curl --silent --show-error --connect-timeout 5 ${{ secrets.NOTIFY_URL }}
+    
